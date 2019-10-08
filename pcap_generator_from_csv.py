@@ -102,14 +102,18 @@ gtp_header = ('30'              # Version(3), Proto type(1) and other zero field
               'TT TT TT TT')    # TEID - will be added later
 
 
-def _reverseEndian(hexstring):
+def _reverseEndian(integer_number):
     #create a list of 2-characters of the input
-    big_endian = re.findall('..', hexstring)
-    little_endian=""
-    for i in reversed(big_endian):
-        little_endian+=i
+    # big_endian = re.findall('..', hexstring)
+    # little_endian=""
+    # for i in reversed(big_endian):
+    #     little_endian+=i
+    #
+    # return little_endian
+    big_endian = integer_number
+    little_endian=big_endian.to_bytes(4, byteorder='little',signed=True)
+    return little_endian.hex()
 
-    return little_endian
 
 
 def createTimestamp(**kwargs):
@@ -122,11 +126,11 @@ def createTimestamp(**kwargs):
     #split it to seconds and microseconds
     _time=_time.split('.')
     # time is a list now
-    sec  = _time[0]
-    usec = _time[1]
+    sec  = int(_time[0])
+    usec = int(_time[1])
     # convert the to hex
-    sec = ("%08x" % int(sec))   # now, we have sec in hex (big endian)
-    usec = ("%08x" % int(usec)) # now, we have usec in hex (big endian)
+    # sec = ("%08x" % int(sec))   # now, we have sec in hex (big endian)
+    # usec = ("%08x" % int(usec)) # now, we have usec in hex (big endian)
 
     sec  = _reverseEndian(sec)
     usec = _reverseEndian(usec)
@@ -174,7 +178,7 @@ def backspace(n):
 
 def calculateRemainingPercentage(current, n):
     percent = (int((current / float(n)) * 100))
-    print("\r>> You have finished {}%%".format(percent))
+    print("\r>> You have finished {}%%\r".format(percent))
     sys.stdout.flush()
     # print("Creating pcap...{}\r".format(percent)),
     # sys.stdout.flush()
