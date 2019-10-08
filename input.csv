@@ -1,0 +1,16 @@
+# This is a commented line! Use as many as you want
+# Supported header fields as keys in this CSV file:
+# timestamp=<TIMESTAMPsec.TIMESTAMPusec> src_mac=<SMAC>,dst_mac=<DMAC>,src_ip=<SIP>, dst_ip=<DIP>, src_port=<SP>, dst_port=<DP>, gtp=<GTP_TEID>, pay Unsupported
+# If a necessary L2/L3/L4 header field is missing  default values will be used, which can be changed by input arguments.
+src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=10.0.0.1, dst_ip=10.0.0.2, src_port=12345, dst_port=22
+src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=10.0.0.1, dst_ip=10.0.0.2, src_port=53,dst_port=45212,payload=dns_example.payload
+src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=10.0.0.1, dst_ip=10.0.0.2, src_port=53,dst_port=44212,payload=dns_example.payload
+src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=10.0.0.1, dst_ip=10.0.0.2, src_port=53,dst_port=43212,payload=dns_example.payload
+src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=8.8.8.8, dst_ip=10.0.0.2, src_port=53,dst_port=42212,payload=dns_example.payload
+src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=8.8.4.4, dst_ip=10.0.0.2, src_port=53,dst_port=41212,payload=dns_example.payload
+src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=123.123.23.1, dst_ip=10.0.0.2, src_port=53,dst_port=44422,payload=dns_example.payload
+src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=12.23.42.222, dst_ip=10.0.0.2, src_port=53,dst_port=44122,payload=dns_example.payload
+src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=10.0.0.1, dst_ip=10.0.0.2, dst_port=8192,vlan=10
+src_mac=20:00:00:00:00:01,dst_mac=20:00:00:00:00:02, vlan=1000
+src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=10.0.0.1, dst_ip=10.0.0.2, dst_port=22
+ext_src_ip=192.168.1.20, ext_dst_ip=192.168.1.1, gtp=255, src_ip=10.0.0.1, dst_ip=10.0.0.2, src_port=2048, dst_port=4096
