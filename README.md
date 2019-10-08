@@ -8,24 +8,22 @@ This application still generates PCAP files from CSV files using low-level Pytho
 ## CSV file should look like this:
 ```
 #this is a comment
-src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=10.0.0.1, dst_ip=10.0.0.2, src_port=12345, dst_port=22
-src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=10.0.0.1, dst_ip=10.0.0.2, dst_port=22
-src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=10.0.0.1, dst_ip=10.0.0.2, dst_port=2222,vlan=10
 # Some DNS response payload
-src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=10.0.0.1, dst_ip=10.0.0.2, src_port=53,dst_port=45212,payload=dns_example.payload
-src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=10.0.0.1, dst_ip=10.0.0.2, src_port=53,dst_port=44212,payload=dns_example.payload
-src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=10.0.0.1, dst_ip=10.0.0.2, src_port=53,dst_port=43212,payload=dns_example.payload
-src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=8.8.8.8, dst_ip=10.0.0.2, src_port=53,dst_port=42212,payload=dns_example.payload
-src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=8.8.4.4, dst_ip=10.0.0.2, src_port=53,dst_port=41212,payload=dns_example.payload
-src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=123.123.23.1, dst_ip=10.0.0.2, src_port=53,dst_port=44422,payload=dns_example.payload
-src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=12.23.42.222, dst_ip=10.0.0.2, src_port=53,dst_port=44122,payload=dns_example.payload
+timestamp=1570500810.431494,src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=10.0.0.1, dst_ip=10.0.0.2, src_port=53,dst_port=45212,payload=dns_example.payload
+timestamp=1570500810.431594,src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=10.0.0.1, dst_ip=10.0.0.2, src_port=53,dst_port=44212,payload=dns_example.payload
+timestamp=1570500810.431694,src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=10.0.0.1, dst_ip=10.0.0.2, src_port=53,dst_port=43212,payload=dns_example.payload
+timestamp=1570500810.431794,src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=8.8.8.8, dst_ip=10.0.0.2, src_port=53,dst_port=42212,payload=dns_example.payload
+timestamp=1570500810.431894,src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=8.8.4.4, dst_ip=10.0.0.2, src_port=53,dst_port=41212,payload=dns_example.payload
+timestamp=1570500810.431994,src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=123.123.23.1, dst_ip=10.0.0.2, src_port=53,dst_port=44422,payload=dns_example.payload
+timestamp=1570500810.432094,src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=12.23.42.222, dst_ip=10.0.0.2, src_port=53,dst_port=44122,payload=dns_example.payload
+timestamp=1570500810.432194,src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=10.0.0.1, dst_ip=10.0.0.2, dst_port=8192,vlan=10
 # end of DNS response payload
 src_mac=20:00:00:00:00:01,dst_mac=20:00:00:00:00:02, vlan=1000
 src_mac=00:00:00:00:00:01,dst_mac=00:00:00:00:00:02, src_ip=10.0.0.1, dst_ip=10.0.0.2, dst_port=22
 ext_src_ip=192.168.1.20, ext_dst_ip=192.168.1.1, gtp=255, src_ip=10.0.0.1, dst_ip=10.0.0.2, src_port=2048, dst_port=4096
-
 ```
- If a necessary L2/L3/L4/GTP/payload (header) field is missing  default values will be used, which can be changed by input arguments.
+
+If a necessary timestamp/L2/L3/L4/GTP/payload (header) field is missing  default values will be used, which can be changed by input arguments.
  
 ## Requirements
  - Python
