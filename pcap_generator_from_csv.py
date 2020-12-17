@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import sys
 import binascii
@@ -86,7 +86,7 @@ ip_header = ('45'  # IP version and header length (multiples of 4 bytes)
              'XX XX'  # Length - will be calculated and replaced later
              '00 00'
              '40 00 40'
-             '11'  # Protocol (0x11 = UDP)
+             'PP'  # Protocol (0x11 = UDP, 0x06 = TCP)
              'YY YY'  # Checksum - will be calculated and replaced later
              'SS SS SS SS'  # Source IP (Default: 10.1.0.1)
              'DD DD DD DD')  # Dest IP (Default: 10.0.0.1)
@@ -96,10 +96,51 @@ udp_header = ('ZZ ZZ'  # Source port - will be replaced lated
               'YY YY'  # Length - will be calculated and replaced later
               '00 00')
 
+tcp_header = ('ZZ ZZ'           # source port
+              'XX XX'           # destination port
+              'SS SS SS SS'     # Seq number
+              'AA AA AA AA'     # ACK number - if SYN then ACK=0
+              'A0 FF'           # offset, reserved and flags (SYN=02, SYN-ACK=12, ACK=10)
+              '71 20'           #window
+              'CC CC'           #checksum
+              '00 00')          #URGENT pointer     
+#these are observed from my own random traffic via wireshark
+tcp_ack_opt= ('01 01 08 0A'
+              'D2 46 05 C4'
+              '81 81 4F 67')
+tcp_syn_opt= ('02 04 05 B4'
+              '04 02 08 0A'
+              'BD B7 BC 30'
+              '00 00 00 00'
+              '01 03 03 07')
+tcp_sa_opt = ('02 04 05 64'
+              '04 02 08 0A'
+              '72 DD ED 49'
+              'BD B7 BB 36'
+              '01 03 03 07')
+
+
 gtp_header = ('30'              # Version(3), Proto type(1) and other zero fields
               'FF'              # Type: T-PDU
               'LL LL'           # Length - will be calculated later
               'TT TT TT TT')    # TEID - will be added later
+
+###### SPECIAL CHARACTERS TO BE REPLACED LATER ######
+## pcap_packet_header:
+# - T1 T1 T1 T1: time in seconds 
+# - T2 T2 T2 T2: time in microsecsonds
+# - XX XX XX XX: frame size
+# - YY YY YY YY: frame size
+## ip_header:
+# - XX XX: IP header length
+# - PP: protocol
+# - YY YY: checksum
+# - SS SS SS SS: source IP
+# - DD DD DD DD: destinatio IP
+## udp_header:
+# - ZZ ZZ: source port
+# - XX XX: destination port
+# - YY YY: length
 
 
 def _reverseEndian(integer_number):
@@ -113,8 +154,6 @@ def _reverseEndian(integer_number):
     big_endian = integer_number
     little_endian=big_endian.to_bytes(4, byteorder='little',signed=True)
     return little_endian.hex()
-
-
 
 def createTimestamp(**kwargs):
     # this is a timestamp in seconds.microseconds, e.g., 1570435931.7557144
@@ -139,7 +178,6 @@ def createTimestamp(**kwargs):
 
 def getByteLength(str1):
     return len(''.join(str1.split())) / 2
-
 
 # raw_input returns the empty string for "enter"
 yes = {'yes','y', 'ye', ''}
@@ -170,15 +208,13 @@ def writeByteStringToFile(bytestring, filename):
     bitout = open(filename, 'ab')
     bitout.write(bytes)
 
-
 def backspace(n):
     # print((b'\x08' * n).decode(), end='') # use \x08 char to go back
     sys.stdout.write('\r' * n)  # use '\r' to go back
 
-
 def calculateRemainingPercentage(current, n):
     percent = (int((current / float(n)) * 100))
-    print("\r>> You have finished {}%%\r".format(percent))
+    sys.stdout.write(str("Generating packets...{}%\r".format(percent)))
     sys.stdout.flush()
     # print("Creating pcap...{}\r".format(percent)),
     # sys.stdout.flush()
@@ -186,9 +222,9 @@ def calculateRemainingPercentage(current, n):
 
     # backspace(len(percent))  # back for n chars
 
-
 def readFile(input):
     headers = list() # list of dictionaries
+    print("I am not crashed...just reading your input file...")
     with open(input, 'r') as lines:
         line_num = 1
         for line in lines:
@@ -216,6 +252,7 @@ def readFile(input):
                             'ext_src_ip':"",
                             'ext_dst_ip':"",
                             'vlan':"",
+                            'proto':"", #udp/tcp
                             'payload':"" #this points to a file containing the payload in HEX in one line
                             # TODO: add more (header) fields here
                     }
@@ -233,14 +270,18 @@ def readFile(input):
                             for h in header.keys():
                                 if header_row[0] == h:
                                     if h.endswith("mac"):
+                                    #convert header data to MAC
                                         header[h] = parseMAC(header_row[1])
                                     elif h.endswith('ip'):
+                                    #convert header data to IP
                                         header[h] = parseIP(header_row[1])
                                     elif h.endswith('port') or h.endswith('vlan') or h.endswith('gtp'):
+                                    #convert header data to Integer
                                         header[h] = int(header_row[1])
                                     elif h.endswith('timestamp') or h.endswith('payload'):
                                         header[h] = header_row[1] #it is a string, but it can remain a string
-
+                                    elif h.endswith('proto'):
+                                        header[h] = parseProto(header_row[1])
                                     # TODO: handle here futher header fields
 
                     headers.append(header)
@@ -279,6 +320,9 @@ def readFile(input):
             if hh == 'payload' and h[hh] == "":
                 h[hh] = None
 
+            if hh == 'proto' and h[hh] == "":
+                h[hh] = parseProto(default_proto)
+
     return headers
 
 
@@ -299,6 +343,7 @@ def generateTraceFromFile(inputfile, pcapfile, **kwargs):
         gtp_teid = default gtp_teid
         timestamp = default timestamp
         payload = pointer to a file containing the payload in HEX
+        proto = default proto (UDP)
 
     :return: None
     '''
@@ -310,6 +355,7 @@ def generateTraceFromFile(inputfile, pcapfile, **kwargs):
     global verbose
     global default_timestamp
     global default_payload
+    global default_proto
 
     default_payloadsize = kwargs.get('payload_size')
     default_src_mac = kwargs.get('src_mac')
@@ -323,6 +369,7 @@ def generateTraceFromFile(inputfile, pcapfile, **kwargs):
     verbose = kwargs.get('verbose')
     default_timestamp = kwargs.get('timestamp')
     default_payload = kwargs.get('payload')
+    default_proto = kwargs.get('proto')
 
 
 
@@ -337,7 +384,7 @@ def generateTraceFromFile(inputfile, pcapfile, **kwargs):
     # write out header information to file - for easier NF configuration later - 5-tuples are in .nfo files as well
     for i in range(1, int(n) + 1):
         # print out the remaining percentage to know when the generate will finish
-        calculateRemainingPercentage(i, int(n))
+        #calculateRemainingPercentage(i, int(n))
 
         # set here the variables
         timestamp = headers[i-1]['timestamp']
@@ -354,7 +401,8 @@ def generateTraceFromFile(inputfile, pcapfile, **kwargs):
         ext_dst_ip = headers[i-1]['ext_dst_ip']
 
         payload = headers[i-1]['payload']
-        # print(payload)
+        proto = headers[i-1]['proto']
+
 
         #VLAN HANDLING - it requires other eth_type and additional headers
         if vlan is None:
@@ -384,13 +432,10 @@ def generateTraceFromFile(inputfile, pcapfile, **kwargs):
 
         # update ip header - see on top how it looks like (the last bytes are encoding the IP address)
         ip = ip_header
-        ip = ip.replace('SS SS SS SS', src_ip)
-        ip = ip.replace('DD DD DD DD', dst_ip)
+        ip = ip.replace('SS SS SS SS', src_ip) #update source IP
+        ip = ip.replace('DD DD DD DD', dst_ip) #upodate destination IP
 
-        # update ports
-        udp = udp_header.replace('XX XX', "%04x" % dport)
-        udp = udp.replace('ZZ ZZ', "%04x" % sport)
-
+       
         # Random payload
         if payload is None:
             # generate the packet payload (random)
@@ -417,14 +462,66 @@ def generateTraceFromFile(inputfile, pcapfile, **kwargs):
                 print("The file containing the payload {} has no useful line".format(payload))
                 print("Exiting...")
                 exit(-1)
+        
+        #Update proto
+        ip = ip.replace('PP', proto) #update IP proto
+        if(proto != '06'): #it is NOT A TCP packet, treat as UDP!
+        #----===== UDP =====----
+            TCP = False
+            # update ports
+            udp = udp_header.replace('XX XX', "%04x" % dport)
+            udp = udp.replace('ZZ ZZ', "%04x" % sport)
 
-        # generate the headers (in case of tunneling: internal headers)
-        udp_len = getByteLength(message) + getByteLength(udp_header)
-        udp = udp.replace('YY YY', "%04x" % int(udp_len))
+            # generate the headers (in case of tunneling: internal headers)
+            udp_len = getByteLength(message) + getByteLength(udp_header)
+            udp = udp.replace('YY YY', "%04x" % int(udp_len))
 
-        ip_len = udp_len + getByteLength(ip_header)
+            ip_len = udp_len + getByteLength(ip_header)
+            #print("IP_LEN:", ip_len)
+        #-----------------------
+        else:
+            # print("TCP")
+        #----=====  TCP  =====----
+            TCP = True
+            tcp = tcp_header.replace('ZZ ZZ', "%04x" % sport) #src port
+            tcp = tcp.replace('XX XX', "%04x" % dport) #dest port
+            #seq_no =  str("%08x" % random.randint(0,2**32))
+            #ack_no =  str("%08x" % random.randint(0,2**31))
+            seq_no = '24922ce5'
+            ack_no = '709e582a'
+            tcp = tcp.replace('SS SS SS SS', seq_no) #Seq no
+            tcp = tcp.replace('AA AA AA AA', ack_no) #ACK no
+            tcp = tcp.replace('FF', '12') #replace flags to indicate SYN-ACK
+            
+            #for checksum calculations we need pseudo header and tcp header with 00 00 checksum
+            hdr = tcp.replace('CC CC', '00 00')
+            
+            #preparing for checksum calculation
+            pseudo_hdr = '00'+proto+src_ip+dst_ip+'14' #last element is TCP length (including data part) which is 20 bytes always
+            # print("---", pseudo_hdr)
+            # print(hdr)
+            hdr_checksum=pseudo_hdr+hdr
+            tcp = tcp.replace('CC CC', "%04x" % int(calc_checksum(hdr_checksum)))
+            
+
+            #TCP SYN-ACK is supported only
+            # Add TCP SA options to TCP base header
+
+            tcp += tcp_sa_opt 
+            # TODO: add TCP SYN, ACK, and further features
+            # print('---tcp_sa')
+            # print(tcp_sa_opt)
+
+            # tcp_len = getByteLength(message) + getByteLength(tcp)
+            tcp_len =  getByteLength(tcp)
+            ip_len = tcp_len + getByteLength(ip_header)
+            #print("IP_LEN:", ip_len)
+
+        #-------------------------
+
+
         ip = ip.replace('XX XX', "%04x" % int(ip_len))
-        checksum = ip_checksum(ip.replace('YY YY', '00 00'))
+        checksum = calc_checksum(ip.replace('YY YY', '00 00'))
         ip = ip.replace('YY YY', "%04x" % int(checksum))
         tot_len = ip_len
 
@@ -434,16 +531,23 @@ def generateTraceFromFile(inputfile, pcapfile, **kwargs):
             gtp = gtp.replace('LL LL', "%04x" % int(gtp_len))
 
             # generate the external headers
-            ext_udp_len = gtp_len + getByteLength(gtp) + getByteLength(udp_header)
-            ext_udp = ext_udp.replace('YY YY', "%04x" % int(ext_udp_len))
+            if(not TCP):
+                ext_udp_len = gtp_len + getByteLength(gtp) + getByteLength(udp_header)
+                ext_udp = ext_udp.replace('YY YY', "%04x" % int(ext_udp_len))
 
-            ext_ip_len = ext_udp_len + getByteLength(ip_header)
-            if ext_ip_len > 1500:
-                print("WARNING! Generating >MTU size packets: {}".format(ext_ip_len))
-            ext_ip = ext_ip.replace('XX XX', "%04x" % int(ext_ip_len))
-            checksum = ip_checksum(ext_ip.replace('YY YY', '00 00'))
-            ext_ip = ext_ip.replace('YY YY', "%04x" % int(checksum))
-            tot_len = ext_ip_len
+                ext_ip_len = ext_udp_len + getByteLength(ip_header)
+                if ext_ip_len > 1500:
+                    print("WARNING! Generating >MTU size packets: {}".format(ext_ip_len))
+                ext_ip = ext_ip.replace('XX XX', "%04x" % int(ext_ip_len))
+                checksum = calc_checksum(ext_ip.replace('YY YY', '00 00'))
+                ext_ip = ext_ip.replace('YY YY', "%04x" % int(checksum))
+                tot_len = ext_ip_len
+            else:
+                print("GTP and TCP is not supported yet")
+                exit(-1)
+                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                # TODO: add TCP + GTP support here
+                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         pcap_len = tot_len + getByteLength(eth_header)
         hex_str = "%08x" % int(pcap_len)
@@ -462,16 +566,32 @@ def generateTraceFromFile(inputfile, pcapfile, **kwargs):
 
         # at the first packet we need the global pcap header
         if i == 1:
-            if gtp_teid is not None:
-                bytestring = pcap_global_header + pcaph + eth_header + ext_ip + ext_udp + gtp + ip + udp + message
+            if gtp_teid is not None: 
+                if not TCP: 
+                    bytestring = pcap_global_header + pcaph + eth_header + ext_ip + ext_udp + gtp + ip + udp + message
+                else:
+                    #TODO: gtp + tcp support
+                    print("GTP and TCP is not supported yet")
+                    exit(-1)
             else:
-                bytestring = pcap_global_header + pcaph + eth_header + ip + udp + message
+                if not TCP: 
+                    bytestring = pcap_global_header + pcaph + eth_header + ip + udp + message
+                else:
+                    bytestring = pcap_global_header + pcaph + eth_header + ip + tcp + message
         # for the rest, only the packets are coming
         else:
             if gtp_teid is not None:
-                bytestring = pcaph + eth_header + ext_ip + ext_udp + gtp + ip + udp + message
+                if not TCP:
+                    bytestring = pcaph + eth_header + ext_ip + ext_udp + gtp + ip + udp + message
+                else: 
+                    #TODO: gtp + tcp support
+                    print("GTP and TCP is not supported yet")
+                    exit(-1)
             else:
-                bytestring = pcaph + eth_header + ip + udp + message
+                if not TCP:
+                    bytestring = pcaph + eth_header + ip + udp + message
+                else:
+                    bytestring = pcaph + eth_header + ip + tcp + message
 
         # this function is writing out pcap file per se
         if verbose:
@@ -527,13 +647,25 @@ def parseIP(ip):
         exit(-1)
     return ret_val
 
+def parseProto(proto):
+    if proto.lower() == "tcp":
+        ret_val = '06'
+    else:
+    #everything else is set to UDP by default irrespectively of having proto=udp or proto=unknown_proto
+        ret_val = '11' #(0x11 = 17)
+    #there is no HEX type in python, so we return string as we anyway need string for the pcap files to write
+    return ret_val
+
 def splitN(str1, n):
     return [str1[start:start + n] for start in range(0, len(str1), n)]
 
 
 # Calculates and returns the IP checksum based on the given IP Header
-def ip_checksum(iph):
-    # split into bytes
+def calc_checksum(iph):
+    #remove whitespaces
+    iph=iph.replace(' ','')
+
+    # split into 16-bits words
     words = splitN(''.join(iph.split()), 4)
 
     csum = 0
@@ -620,12 +752,18 @@ if __name__ == '__main__':
                              "in the input.csv. Default: 10.0.0.2",
                         required=False,
                         default=["10.0.0.2"])
+    parser.add_argument('-l', '--proto', nargs=1,
+                        help="Specify default protocol "
+                             "in the input.csv. Default: udp",
+                        required=False,
+                        default=["udp"])
 
     parser.add_argument('-f', '--src_port', nargs=1,
                         help="Specify default source port if it is not present "
                              "in the input.csv. Default: 1234",
                         required=False,
                         default=["1234"])
+
     parser.add_argument('-g', '--dst_port', nargs=1,
                         help="Specify default destination port if it is not present "
                              "in the input.csv. Default: 80",
@@ -640,6 +778,7 @@ if __name__ == '__main__':
                              "in the input.csv. Default: Use current time",
                         required=False,
                         default=[None])
+    
 
 
     parser.add_argument('-v','--verbose', action='store_true', required=False, dest='verbose',
@@ -660,6 +799,7 @@ if __name__ == '__main__':
     vlan = args.vlan[0]
     gtp_teid = args.gtp_teid[0]
     timestamp = args.timestamp[0]
+    proto = args.proto[0]
 
     verbose=args.verbose
 
@@ -671,6 +811,7 @@ if __name__ == '__main__':
     print("{}DST MAC if undefined:       {}{}{}".format(bold,green,dst_mac,none))
     print("{}SRC IP if undefined:        {}{}{}".format(bold,green,src_ip,none))
     print("{}DST IP if undefined:        {}{}{}".format(bold,green,dst_ip,none))
+    print("{}PROTO if undefined:         {}{}{}".format(bold,green,proto,none))
     print("{}SRC PORT if undefined:      {}{}{}".format(bold,green,src_port,none))
     print("{}DST PORT if undefined:      {}{}{}".format(bold,green,dst_port,none))
     print("{}VLAN if undefined:          {}{}{}".format(bold,green,vlan,none))
@@ -692,5 +833,8 @@ if __name__ == '__main__':
                             vlan=vlan,
                             verbose=verbose,
                             gtp_teid=gtp_teid,
-                            timestamp=timestamp
+                            timestamp=timestamp,
+                            proto=proto
                          )
+
+    print("Generating packets...[DONE]")
