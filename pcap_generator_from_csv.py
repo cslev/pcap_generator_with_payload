@@ -119,23 +119,25 @@ def _reverseEndian(integer_number):
 def createTimestamp(**kwargs):
     # this is a timestamp in seconds.microseconds, e.g., 1570435931.7557144
     _time = kwargs.get('time',time.time())
-
+    
     #check for float type
-    if isinstance(_time,float):
+    if isinstance(_time, float):
         _time="%.8f" % _time # str(time) is not working well below python3 as floats become reduced to two decimals only
-    #split it to seconds and microseconds
-    _time=_time.split('.')
-    # time is a list now
-    sec  = int(_time[0])
-    usec = int(_time[1])
-    # convert the to hex
-    # sec = ("%08x" % int(sec))   # now, we have sec in hex (big endian)
-    # usec = ("%08x" % int(usec)) # now, we have usec in hex (big endian)
+        #TIME is float
+        #split it to seconds and microseconds
+        _time=_time.split('.')
+        sec  = int(_time[0])
+        usec = int(_time[1])
+
+    else:
+        #TIME IS int only
+        sec = int(_time)
+        usec = 123221 #set random usec
 
     sec  = _reverseEndian(sec)
     usec = _reverseEndian(usec)
-
     return (sec,usec)
+
 
 def getByteLength(str1):
     return len(''.join(str1.split())) / 2
